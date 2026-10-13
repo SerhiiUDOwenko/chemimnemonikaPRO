@@ -1,0 +1,46 @@
+name: Auto Update Gallery Manifest
+
+on:
+  push:
+    paths:
+      - 'images/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate gallery.json
+        run: |
+          python -c "
+          import os, json
+          manifest = {}
+          if os.path.exists('images'):
+              for z in range(1, 119):
+                  folder = os.path.join('images', str(z))
+                  if os.path.exists(folder):
+                      exts = ('.jpg', '.jpeg', '.png', '.webp', '.svg')
+                      files = [f'images/{z}/{f}' for f in sorted(os.listdir(folder)) if f.lower().endswith(exts)]
+                      if files:
+                          manifest[str(z)] = files
+          with open('gallery.json', 'w', encoding='utf-8') as f:
+              json.dump(manifest, f, ensure_ascii=False, indent=2)
+          "
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add gallery.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update gallery.json [skip ci]" && git push)

@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
+  <link rel="manifest" href="manifest.json">
+  <title>ХімоМнемоніка PRO — Інтерактивна Періодична Таблиця</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
+    
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0b0f19;
+      color: #f1f5f9;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+    .font-mono { font-family: 'Fira Code', monospace; }
+
+    .ptable-grid {
+      display: grid;
+      grid-template-columns: repeat(18, minmax(62px, 1fr));
+      gap: 5px;
+      min-width: 1180px;
+    }
+    
+    .lanth-act-grid {
+      display: grid;
+      grid-template-columns: 130px repeat(15, minmax(62px, 1fr));
+      gap: 5px;
+      min-width: 1180px;
+    }
+
+    .elem-card {
+      transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      user-select: none;
+    }
+    .elem-card:hover {
+      transform: translateY(-3px) scale(1.04);
+      z-index: 30;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 15px rgba(56, 189, 248, 0.4);
+    }
+
+    .perspective-1000 { perspective: 1000px; }
+    .transform-style-3d { transform-style: preserve-3d; }
+    .backface-hidden { backface-visibility: hidden; }
+    .rotate-y-180 { transform: rotateY(180deg); }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    .spectrum-bar {
+      height: 28px;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      position: relative;
+      overflow: hidden;
+    }
+    .spectral-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+    }
+
+    @media print {
+      body { background: white !important; color: black !important; }
+      header, nav, footer, .no-print { display: none !important; }
+      .print-card { break-inside: avoid; border: 1px solid #000; padding: 15px; margin-bottom: 20px; page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+  <!-- Шапка сайту -->
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40 px-4 py-3 no-print">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-gradient-to-tr from-cyan-500 to-indigo-600 rounded-xl text-white shadow-lg shadow-cyan-500/20">
+          <i data-lucide="atom" class="w-7 h-7"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-black bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent">
+            ХімоМнемоніка PRO
+          </h1>
+          <p class="text-xs text-slate-400">Інтерактивна лабораторія хімічних елементів IUPAC (1–118)</p>
+        </div>
+      </div>
+
+      <!-- Вкладки навігації -->
+      <nav class="flex items-center gap-1.5 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60 overflow-x-auto">
+        <button id="navTable" onclick="switchView('table')" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition bg-cyan-500 text-white shadow-md">
+          <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i> Таблиця
+        </button>
+        <button id="navCards" onclick="switchView('cards')" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition text-slate-300 hover:text-white">
+          <i data-lucide="layers" class="w-3.5 h-3.5"></i> Мнемо-Картки
+        </button>
+        <button id="navCompare" onclick="switchView('compare')" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition text-slate-300 hover:text-white">
+          <i data-lucide="split" class="w-3.5 h-3.5"></i> Порівняння
+        </button>
+        <button id="navSandbox" onclick="switchView('sandbox')" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition text-slate-300 hover:text-white">
+          <i data-lucide="flask-conical" class="w-3.5 h-3.5"></i> Реакції
+        </button>
+        <button id="navQuiz" onclick="switchView('quiz')" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition text-slate-300 hover:text-white">
+          <i data-lucide="help-circle" class="w-3.5 h-3.5"></i> Квіз
+        </button>
+        <button onclick="window.print()" title="Друкувати картки" class="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/60 ml-1">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ОСНОВНИЙ КОНТЕНТ -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
+    
+    <!-- 1. ТАБЛИЦЯ -->
+    <div id="viewTable" class="space-y-6">
+      <div class="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 backdrop-blur no-print">
+        <div class="relative w-full md:w-80">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3.5 text-slate-400"></i>
+          <input type="text" id="searchInput" oninput="handleSearch(this.value)" placeholder="Пошук (назва, символ, №)..."
+                 class="w-full pl-9 pr-4 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500">
+        </div>
+
+        <div class="flex items-center gap-2 bg-slate-800/90 p-1 rounded-xl border border-slate-700">
+          <span class="text-xs text-slate-400 px-2 font-medium">Режим:</span>
+          <button id="modeCategory" onclick="setDisplayMode('category')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-cyan-600 text-white">Категорії</button>
+          <button id="modeBlock" onclick="setDisplayMode('block')" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white">Блоки (s, p, d, f)</button>
+          <button id="modeElectro" onclick="setDisplayMode('electro')" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white">Полінг (χ)</button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <select id="categoryFilter" onchange="filterCategory(this.value)" class="bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-slate-200 focus:outline-none">
+            <option value="all">Усі групи елементів</option>
+            <option value="nonmetal">Неметали</option>
+            <option value="noble">Інертні гази</option>
+            <option value="alkali">Лужні метали</option>
+            <option value="alkaline">Лужноземельні метали</option>
+            <option value="metalloid">Напівметали</option>
+            <option value="halogen">Галогени</option>
+            <option value="transition">Перехідні метали</option>
+            <option value="post-transition">Постперехідні метали</option>
+            <option value="lanthanide">Лантаноїди</option>
+            <option value="actinide">Актиноїди</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto pb-6">
+        <div id="mainPeriodicTable" class="ptable-grid mb-6"></div>
+        <div class="my-4 border-t border-dashed border-slate-800"></div>
+        <div class="space-y-2">
+          <div id="lanthanidesRow" class="lanth-act-grid items-center">
+            <div class="text-xs font-bold text-amber-400 pl-2">Лантаноїди *</div>
+          </div>
+          <div id="actinidesRow" class="lanth-act-grid items-center">
+            <div class="text-xs font-bold text-rose-400 pl-2">Актиноїди **</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. МНЕМО-КАРТКИ -->
+    <div id="viewCards" class="hidden max-w-xl mx-auto space-y-6">
+      <div class="text-center">
+        <h2 class="text-2xl font-bold text-white mb-1">Мнемо-Картки</h2>
+        <p class="text-xs text-slate-400">Натисніть на картку для перевороту</p>
+      </div>
+
+      <div class="perspective-1000 w-full h-[480px] cursor-pointer" onclick="flipCard()">
+        <div id="flashcardInner" class="relative w-full h-full transform-style-3d transition-transform duration-500 rounded-3xl shadow-2xl border border-slate-700 bg-slate-900/90">
+          <div class="absolute inset-0 backface-hidden p-8 flex flex-col justify-between items-center text-center">
+            <div class="w-full flex justify-between items-center text-xs text-slate-400 font-mono">
+              <span id="fcNumber">№ 1</span>
+              <span id="fcCategory" class="px-2.5 py-1 rounded-md bg-slate-800 text-cyan-400 font-medium">Неметал</span>
+            </div>
+            
+            <div class="my-auto space-y-3">
+              <div id="fcSymbol" class="text-7xl font-black tracking-tight text-white font-mono">H</div>
+              <div id="fcName" class="text-2xl font-bold text-slate-200">Гідроген (водень)</div>
+              <div id="fcMass" class="text-sm font-mono text-slate-400">1.008 а.о.м.</div>
+              <div id="fcSampleImg" class="w-24 h-24 mx-auto rounded-xl overflow-hidden border border-slate-700 shadow-md flex items-center justify-center bg-slate-950"></div>
+            </div>
+
+            <div class="text-xs text-cyan-400 font-semibold flex items-center gap-1.5">
+              <i data-lucide="rotate-cw" class="w-4 h-4"></i> Натисніть для перевороту
+            </div>
+          </div>
+
+          <div class="absolute inset-0 backface-hidden rotate-y-180 p-8 flex flex-col justify-between rounded-3xl bg-slate-900 border border-cyan-500/40">
+            <div class="flex justify-between items-center text-xs text-slate-400">
+              <span class="font-bold text-cyan-400 uppercase tracking-wider">Мнемонічний образ</span>
+              <span id="fcBackSymbol" class="font-mono font-bold text-white">H</span>
+            </div>
+
+            <div class="my-auto space-y-4">
+              <div class="p-4 bg-slate-800/80 rounded-2xl border border-slate-700">
+                <p id="fcMnemonicVerse" class="text-base text-cyan-200 font-medium italic leading-relaxed text-center"></p>
+              </div>
+              <p id="fcFact" class="text-xs text-slate-300 leading-relaxed text-left bg-slate-950/60 p-3 rounded-xl border border-slate-800"></p>
+            </div>
+
+            <div class="text-center text-xs text-slate-400">Натисніть для повернення</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <button onclick="prevCard()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-semibold flex items-center gap-2 border border-slate-700">
+          <i data-lucide="chevron-left" class="w-4 h-4"></i> Попередня
+        </button>
+        <span id="cardCounter" class="text-xs font-mono text-slate-400">1 / 118</span>
+        <button onclick="nextCard()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-semibold flex items-center gap-2 border border-slate-700">
+          Наступна <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- 3. РЕЖИМ ПОРІВНЯННЯ -->
+    <div id="viewCompare" class="hidden max-w-4xl mx-auto space-y-6">
+      <div class="text-center">
+        <h2 class="text-2xl font-bold text-white">Порівняння двох елементів</h2>
+        <p class="text-xs text-slate-400">Оберіть два елементи для наочного аналізу відмінностей</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl space-y-4">
+          <select id="compareSelectA" onchange="updateCompareView()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold text-white"></select>
+          <div id="compareDetailsA" class="space-y-3 text-sm"></div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl space-y-4">
+          <select id="compareSelectB" onchange="updateCompareView()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold text-white"></select>
+          <div id="compareDetailsB" class="space-y-3 text-sm"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. КОНСТРУКТОР РЕАКЦІЙ -->
+    <div id="viewSandbox" class="hidden max-w-2xl mx-auto space-y-6">
+      <div class="text-center">
+        <h2 class="text-2xl font-bold text-white">Лабораторія реакцій</h2>
+        <p class="text-xs text-slate-400">Поєднайте 2 елементи для утворення хімічної сполуки</p>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 p-8 rounded-3xl space-y-6">
+        <div class="flex items-center justify-between gap-4">
+          <select id="reactionElem1" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm font-bold text-white"></select>
+          <span class="text-2xl font-black text-cyan-400">+</span>
+          <select id="reactionElem2" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm font-bold text-white"></select>
+        </div>
+
+        <button onclick="synthesizeReaction()" class="w-full py-3.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-cyan-600/30 transition">
+          Синтезувати реакцію ⚗️
+        </button>
+
+        <div id="reactionResultBox" class="hidden p-6 rounded-2xl bg-slate-950 border border-cyan-800/60 space-y-3"></div>
+      </div>
+    </div>
+
+    <!-- 5. КВІЗ -->
+    <div id="viewQuiz" class="hidden max-w-xl mx-auto space-y-6">
+      <div class="bg-slate-900/90 border border-slate-800 p-8 rounded-3xl shadow-xl space-y-6">
+        <div class="flex justify-between items-center text-xs text-slate-400">
+          <span class="font-bold uppercase tracking-wider text-cyan-400">Тренажер знань</span>
+          <span id="quizScoreBadge" class="font-mono bg-cyan-950 text-cyan-300 px-3 py-1 rounded-full border border-cyan-800">Рахунок: 0</span>
+        </div>
+
+        <div class="space-y-3">
+          <h3 id="quizQuestionText" class="text-lg font-bold text-white leading-relaxed"></h3>
+          <div id="quizPromptBox" class="p-4 bg-slate-800/60 rounded-2xl border border-slate-700/80 text-sm text-cyan-200 italic"></div>
+        </div>
+
+        <div id="quizOptionsContainer" class="grid grid-cols-1 gap-2.5 pt-2"></div>
+        <div id="quizFeedbackBox" class="hidden p-4 rounded-xl text-sm"></div>
+
+        <button id="quizNextBtn" onclick="generateQuizQuestion()" class="hidden w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold transition shadow-lg shadow-cyan-600/30">
+          Наступне питання →
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- МОДАЛЬНЕ ВІКНО КАРТКИ -->
+  <div id="elementModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-y-auto shadow-2xl p-6 md:p-8 space-y-6">
+      
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+        <div class="flex items-center gap-4">
+          <span id="modalSymbol" class="text-4xl font-black font-mono text-cyan-400 px-3 py-1 bg-slate-800 rounded-2xl border border-slate-700">H</span>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 id="modalName" class="text-2xl font-black text-white">Гідроген (водень)</h2>
+              <span id="modalNumberBadge" class="text-xs font-mono bg-slate-800 text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-700">№ 1</span>
+            </div>
+            <p id="modalCategoryBadge" class="text-xs text-slate-400 font-medium">Неметал • Період 1, Група 1</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="navigateModal(-1)" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-200 border border-slate-700 transition"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
+          <button onclick="navigateModal(1)" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-200 border border-slate-700 transition"><i data-lucide="arrow-right" class="w-4 h-4"></i></button>
+          <button onclick="closeModal()" class="p-2 bg-slate-800 hover:bg-rose-900/50 rounded-xl text-slate-200 border border-slate-700 hover:border-rose-700 transition ml-2"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+        
+        <!-- 3D Полотно -->
+        <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
+          <div class="w-full flex justify-between items-center mb-2 z-10">
+            <div class="flex bg-slate-900 p-0.5 rounded-xl border border-slate-800">
+              <button id="btnViewBohr" onclick="set3DMode('bohr')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-cyan-600 text-white flex items-center gap-1.5 transition shadow-sm">
+                <i data-lucide="orbit" class="w-3.5 h-3.5"></i> Атом Бора
+              </button>
+              <button id="btnViewLattice" onclick="set3DMode('lattice')" class="px-3 py-1.5 text-xs font-bold rounded-lg text-slate-400 hover:text-white flex items-center gap-1.5 transition">
+                <i data-lucide="box" class="w-3.5 h-3.5"></i> Решітка
+              </button>
+            </div>
+            <span class="text-[10px] text-slate-500">Обертайте 360°</span>
+          </div>
+
+          <div class="relative w-full h-[280px]">
+            <canvas id="bohrCanvas" class="w-full h-full cursor-grab active:cursor-grabbing rounded-xl bg-slate-950"></canvas>
+            <div id="latticeTypeBadge" class="hidden absolute top-2 right-2 bg-slate-900/90 border border-cyan-800 text-[10px] font-mono text-cyan-300 px-2 py-0.5 rounded-md pointer-events-none shadow-md"></div>
+          </div>
+
+          <div id="bohrConfigText" class="mt-2 text-xs font-mono text-cyan-300 text-center"></div>
+        </div>
+
+        <!-- Галерея та Мнемоніка -->
+        <div class="flex flex-col justify-between space-y-4">
+          
+          <div class="p-4 bg-slate-950/60 rounded-2xl border border-slate-800 space-y-3">
+            <div class="flex items-center justify-between text-xs text-slate-400">
+              <span class="font-semibold uppercase tracking-wider">Галерея зразків:</span>
+              <span id="galleryCounter" class="font-mono text-[10px] bg-slate-800 px-2 py-0.5 rounded">1 / 1</span>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <button id="btnPrevImg" onclick="gallerySlide(-1)" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+              <div class="w-28 h-28 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shrink-0 cursor-zoom-in" onclick="openLightbox()">
+                <img id="modalSampleImg" src="" alt="Sample" class="w-full h-full object-cover" referrerpolicy="no-referrer" onerror="handleSampleImageError(this)">
+              </div>
+              <button id="btnNextImg" onclick="gallerySlide(1)" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+              <div class="flex-1">
+                <p id="modalSampleDesc" class="text-xs text-slate-200 leading-relaxed"></p>
+                <div id="galleryThumbnails" class="flex gap-1.5 mt-2 overflow-x-auto pb-1"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-4 bg-cyan-950/40 rounded-2xl border border-cyan-800/60 space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                <i data-lucide="sparkles" class="w-4 h-4"></i> Мнемонічна рима
+              </span>
+              <button onclick="speakMnemonic()" class="text-xs text-cyan-300 hover:text-white flex items-center gap-1">
+                <i data-lucide="volume-2" class="w-3.5 h-3.5"></i> Озвучити
+              </button>
+            </div>
+            <p id="modalVerse" class="text-sm font-medium italic text-cyan-100 leading-relaxed"></p>
+          </div>
+
+          <div class="space-y-1.5">
+            <div class="flex justify-between items-center text-xs text-slate-400">
+              <div class="flex items-center gap-2">
+                <span>Оптичний спектр:</span>
+                <button id="spectrumTypeBtn" onclick="toggleSpectrumType()" class="text-[10px] text-cyan-400 font-bold bg-slate-800 px-2 py-0.5 rounded hover:text-white">Емісійний</button>
+              </div>
+              <span class="font-mono text-[10px]">380 — 750 нм</span>
+            </div>
+            <div id="modalSpectrumBar" class="spectrum-bar"></div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+        <div class="p-3 bg-slate-950/60 border border-slate-800 rounded-xl">
+          <div class="text-[10px] text-slate-400 uppercase">Атомна маса</div>
+          <div id="propMass" class="text-xs font-mono font-bold text-white mt-1"></div>
+        </div>
+        <div class="p-3 bg-slate-950/60 border border-slate-800 rounded-xl">
+          <div class="text-[10px] text-slate-400 uppercase">Електронегативність</div>
+          <div id="propElectro" class="text-xs font-mono font-bold text-cyan-300 mt-1"></div>
+        </div>
+        <div class="p-3 bg-slate-950/60 border border-slate-800 rounded-xl">
+          <div class="text-[10px] text-slate-400 uppercase">Ступені окиснення</div>
+          <div id="propOxidation" class="text-xs font-mono font-bold text-white mt-1"></div>
+        </div>
+        <div class="p-3 bg-slate-950/60 border border-slate-800 rounded-xl">
+          <div class="text-[10px] text-slate-400 uppercase">Ковалентний радіус</div>
+          <div id="propRadius" class="text-xs font-mono font-bold text-white mt-1"></div>
+        </div>
+        <div class="p-3 bg-slate-950/60 border border-slate-800 rounded-xl">
+          <div class="text-[10px] text-slate-400 uppercase">Енергія іонізації</div>
+          <div id="propIonization" class="text-xs font-mono font-bold text-white mt-1"></div>
+        </div>
+        <div class="p-3 bg-slate-950/60 border border-slate-800 rounded-xl">
+          <div class="text-[10px] text-slate-400 uppercase">Кристалічна ґратка</div>
+          <div id="propCrystal" class="text-xs font-mono font-bold text-white mt-1"></div>
+        </div>
+      </div>
+
+      <div class="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-2">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Енциклопедичний опис</h4>
+        <p id="modalDescription" class="text-xs text-slate-300 leading-relaxed"></p>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="lightboxModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-md cursor-pointer" onclick="closeLightbox()">
+    <img id="lightboxImg" src="" alt="Full view" class="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl">
+  </div>
+
+  <footer class="border-t border-slate-800/80 bg-slate-950 py-4 px-4 text-center text-xs text-slate-500 no-print">
+    ХімоМнемоніка PRO • 118 Хімічних Елементів IUPAC • Навчальна Платформа
+  </footer>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+
+    let galleryManifest = {};
+    fetch('./gallery.json')
+      .then(res => res.json())
+      .then(data => { galleryManifest = data; })
+      .catch(() => {});
+
+    function calculateRealElectronShells(z) {
+      const capacities = [2, 8, 18, 32, 32, 18, 8];
+      if (z === 1) return [1];
+      if (z === 2) return [2];
+      if (z <= 10) return [2, z - 2];
+      if (z <= 18) return [2, 8, z - 10];
+      if (z === 19) return [2, 8, 8, 1];
+      if (z === 20) return [2, 8, 8, 2];
+
+      const shellCount = z <= 36 ? 4 : z <= 54 ? 5 : z <= 86 ? 6 : 7;
+      let temp = z;
+      const shells = [];
+      for (let i = 0; i < shellCount; i++) {
+        if (i === shellCount - 1) {
+          shells.push(temp);
+        } else {
+          let fill = Math.min(temp, capacities[i]);
+          if (temp - fill < (shellCount - i - 1)) {
+            fill = temp - (shellCount - i - 1);
+          }
+          shells.push(fill);
+          temp -= fill;
+        }
+      }
+      return shells;
+    }
+
+    const elementImageFilenames = {
+      1: "hydrogen", 2: "helium", 3: "lithium", 4: "beryllium", 5: "boron",
+      6: "carbon", 7: "nitrogen", 8: "oxygen", 9: "fluorine", 10: "neon",
+      11: "sodium", 12: "magnesium", 13: "aluminium", 14: "silicon", 15: "phosphorus",
+      16: "sulfur", 17: "chlorine", 18: "argon", 19: "potassium", 20: "calcium",
+      21: "scandium", 22: "titanium", 23: "vanadium", 24: "chromium", 25: "manganese",
+      26: "iron", 27: "cobalt", 28: "nickel", 29: "copper", 30: "zinc",
+      31: "gallium", 32: "germanium", 33: "arsenic", 34: "selenium", 35: "bromine",
+      36: "krypton", 37: "rubidium", 38: "strontium", 39: "yttrium", 40: "zirconium",
+      41: "niobium", 42: "molybdenum", 43: "technetium", 44: "ruthenium", 45: "rhodium",
+      46: "palladium", 47: "silver", 48: "cadmium", 49: "indium", 50: "tin",
+      51: "antimony", 52: "tellurium", 53: "iodine", 54: "xenon", 55: "caesium",
+      56: "barium", 57: "lanthanum", 58: "cerium", 59: "praseodymium", 60: "neodymium",
+      61: "promethium", 62: "samarium", 63: "europium", 64: "gadolinium", 65: "terbium",
+      66: "dysprosium", 67: "holmium", 68: "erbium", 69: "thulium", 70: "ytterbium",
+      71: "lutetium", 72: "hafnium", 73: "tantalum", 74: "tungsten", 75: "rhenium",
+      76: "osmium", 77: "iridium", 78: "platinum", 79: "gold", 80: "mercury",
+      81: "thallium", 82: "lead", 83: "bismuth", 84: "polonium", 85: "astatine",
+      86: "radon", 87: "francium", 88: "radium", 89: "actinium", 90: "thorium",
+      91: "protactinium", 92: "uranium", 93: "neptunium", 94: "plutonium", 95: "americium",
+      96: "curium", 97: "berkelium", 98: "californium", 99: "einsteinium", 100: "fermium",
+      101: "mendelevium", 102: "nobelium", 103: "lawrencium", 104: "rutherfordium",
+      105: "dubnium", 106: "seaborgium", 107: "bohrium", 108: "hassium", 109: "meitnerium",
+      110: "darmstadtium", 111: "roentgenium", 112: "copernicium", 113: "nihonium",
+      114: "flerovium", 115: "moscovium", 116: "livermorium", 117: "tennessine", 118: "oganesson"
+    };
+
+    function getElementImageUrl(z) {
+      if (galleryManifest[z] && galleryManifest[z].length) {
+        return galleryManifest[z][0];
+      }
+      const slug = elementImageFilenames[z];
+      return slug ? `https://images-of-elements.com/${slug}.jpg` : '';
+    }
+
+    // ПОВНИЙ РЕЄСТР УСІХ 118 ЕЛЕМЕНТІВ IUPAC БЕЗ ПРОПУСКІВ
+    const masterElementsList = {
+      1: ["H", "Гідроген (водень)", "nonmetal", "s", 1, 1, 1.008, 2.20, "Молекулярна (H₂)", "Найлегший елемент і головне паливо зірок.", "Перший номер — Гідроген, у воді він супермен! Палить зорі, сяє в небі, творить все життя для тебе."],
+      2: ["He", "Гелій", "noble", "s", 1, 18, 4.0026, null, "ГПУ", "Інертний благородний газ з найнижчою температурою кипіння.", "Гелій в кульці — вгору лине, легкий газ на дві хвилини! Номер два, інертний він, сонячний небесний дзвін."],
+      3: ["Li", "Літій", "alkali", "s", 2, 1, 6.94, 0.98, "ОЦК", "Найлегший метал, серце сучасних акумуляторів.", "Номер три — це легкий Літій, в батарейках знаменитий! У воді вирує сміло, лужне утворює діло."],
+      4: ["Be", "Берилій", "alkaline", "s", 2, 2, 9.0122, 1.57, "ГПУ", "Міцний легкий метал, основа смарагдів.", "Номер чотири — Берилій твердий, в смарагдах ховається скарб дорогий! У ракетах він літає, рентген-вікна захищає."],
+      5: ["B", "Бор", "metalloid", "p", 2, 13, 10.81, 2.04, "Ромбоедрична", "Твердий напівметал для надміцного скла та реакторів.", "П'ятий Бор — твердий кристал, наче камінь, не метал! Зеленим полум'ям палає, міцне скло оберігає."],
+      6: ["C", "Карбон (вуглець)", "nonmetal", "p", 2, 14, 12.011, 2.55, "Алмазна (C)", "Основа органічної хімії, алмазів і нанотрубок.", "Шість — Карбон, життя основа, формула живого слова! І у графіті олівця, і в діамантах без кінця."],
+      7: ["N", "Нітроген (азот)", "nonmetal", "p", 2, 15, 14.007, 3.04, "Молекулярна (N₂)", "78% повітря, основа білків та ДНК.", "Сім — Нітроген, повітря цар, природи найщедріший дар! У білках він непохитний, азот життєвий та потрібний."],
+      8: ["O", "Оксиген (кисень)", "nonmetal", "p", 2, 16, 15.999, 3.44, "Молекулярна (O₂)", "Підтримує дихання і горіння, основа життя.", "Вісім — Оксиген коханий, подих лісу полум'яний! Ми вдихаємо щомиті цей вогонь усього світу."],
+      9: ["F", "Флуор (фтор)", "halogen", "p", 2, 17, 18.998, 3.98, "Молекулярна (F₂)", "Найбільш електронегативний хімічний елемент.", "Дев'ять — це Флуор-агресор, окиснення професор! Зубну емаль він захищає, хоч сам усе навкруг спалює."],
+      10: ["Ne", "Неон", "noble", "p", 2, 18, 20.18, null, "ГЦК", "Благородний газ, сяє червоним у вивісках.", "Десять — це яскравий Неон, вогнів нічних він чемпіон! Вивіски горять у місті у червоно-палкому листі."],
+      11: ["Na", "Натрій", "alkali", "s", 3, 1, 22.99, 0.93, "ОЦК", "М'який лужний метал, компонент солі NaCl.", "Одинадцять — Натрій сяє, ніж у нього проникає! Хлор додав — і сіль на столі, в кожній хаті і селі."],
+      12: ["Mg", "Магній", "alkaline", "s", 3, 2, 24.305, 1.31, "ГПУ", "Легкий метал, горить білим, склад хлорофілу.", "Дванадцять — Магній білим сяє, спалах фото вибухає! В хлорофілі він сидить, зеленню весь світ мастить."],
+      13: ["Al", "Алюміній", "post-transition", "p", 3, 13, 26.982, 1.61, "ГЦК", "Легкий метал світової авіації.", "Тринадцять — легкий Алюміній, літак злітає в небі синім! Фольга на кухні, дріт, крило — скрізь алюмінію тепло."],
+      14: ["Si", "Силіцій (кремній)", "metalloid", "p", 3, 14, 28.085, 1.90, "Алмазна (Si)", "Головний напівпровідник комп'ютерних процесорів.", "Чотирнадцять — Силіцій з піску, творить комп'ютерну добу! В процесорах розумних б'ється, Кремнієвою долиною зветься."],
+      15: ["P", "Фосфор", "nonmetal", "p", 3, 15, 30.974, 2.19, "Молекулярна (P₄)", "Енергія АТФ, міцність зубів і склад сірників.", "П'ятнадцять — Фосфор у темряві сяє, у сірниках вогонь пускає! В АТФ він силу нам дає, міцність кісткам додає."],
+      16: ["S", "Сульфур (сірка)", "nonmetal", "p", 3, 16, 32.06, 2.58, "Ортоторомбічна (S₈)", "Жовтий вулканічний неметал для кислоти та гуми.", "Шістнадцять — жовта-жовта Сірка, вулканів полум'яна дірка! Гуму міцною вона робить, кислота з неї дива творить."],
+      17: ["Cl", "Хлор", "halogen", "p", 3, 17, 35.45, 3.16, "Молекулярна (Cl₂)", "Зеленувато-жовтий газ для очищення води.", "Сімнадцять — Хлор, отруйний газ, басейн очистить він для нас! З Натрієм вступить у зв'язок — і смачним стане пиріжок."],
+      18: ["Ar", "Аргон", "noble", "p", 3, 18, 39.948, null, "ГЦК", "Інертний захисний газ для електрозварювання.", "Вісімнадцять — спокійний Аргон, зварює сталь без перепон! Лампи від кисню зберігає, тихо в повітрі спочиває."],
+      19: ["K", "Калій", "alkali", "s", 4, 1, 39.098, 0.82, "ОЦК", "Лужний метал для підтримки ритму серця.", "Дев'ятнадцять — Калій для сердець, у бананах він мудрець! З водою спалахне фіалково, природа зроблена казково."],
+      20: ["Ca", "Кальцій", "alkaline", "s", 4, 2, 40.078, 1.00, "ГЦК", "Основа кісток, мармуру, вапняку та мушель.", "Двадцять — Кальцій, міцні зуби, кожен скелет його любить! Крейда, мармур і вапно — з Кальцієм міцне воно."],
+      21: ["Sc", "Скандій", "transition", "d", 4, 3, 44.956, 1.36, "ГПУ", "Легкий міцний метал для алюмінієвих аерокосмічних сплавів.", "Двадцять один — Скандій крилатий, літакам міцність давати!"],
+      22: ["Ti", "Титан", "transition", "d", 4, 4, 47.867, 1.54, "ГПУ", "Надміцний і біосумісний метал для імплантів та ракет.", "Двадцять два — могутній Титан, розсікає космічний туман!"],
+      23: ["V", "Ванадій", "transition", "d", 4, 5, 50.942, 1.63, "ОЦК", "Добавка до надміцної сталі для гайкових ключів та броні.", "Ванадій міцний, двадцять три, удари сталі витри!"],
+      24: ["Cr", "Хром", "transition", "d", 4, 6, 51.996, 1.66, "ОЦК", "Блискучий твердий метал, захищає сталь від іржі.", "Хром двадцять чотири блищить, нержавійку надійно щитить!"],
+      25: ["Mn", "Манган", "transition", "d", 4, 7, 54.938, 1.55, "Кубічна", "Важливий розкислювач сталі та мікроелемент фотосинтезу.", "Двадцять п'ять — Манган у руді, допоможе міцній сталі й воді!"],
+      26: ["Fe", "Ферум (залізо)", "transition", "d", 4, 8, 55.845, 1.83, "ОЦК", "Фундамент металургії та дихання (гемоглобін).", "Двадцять шість — могутній Ферум, сталь і кров тримає нервом!"],
+      27: ["Co", "Кобальт", "transition", "d", 4, 9, 58.933, 1.88, "ГПУ", "Синій пігмент, феромагнетик, основа вітаміну B12.", "Двадцять сім — Кобальт синій, у магнітах незамінний!"],
+      28: ["Ni", "Нікель", "transition", "d", 4, 10, 58.693, 1.91, "ГЦК", "Корозійностійкий метал для монет та акумуляторів.", "Двадцять вісім — Нікель білий, для монет метал умілий!"],
+      29: ["Cu", "Купрум (мідь)", "transition", "d", 4, 11, 63.546, 1.90, "ГЦК", "Червоний електропровідний метал для дротів.", "Двадцять дев'ять — Купрум-мідь, по дротах струм біжить!"],
+      30: ["Zn", "Цинк", "transition", "d", 4, 12, 65.38, 1.65, "ГПУ", "Захищає залізо від корозії (оцинкування), підтримує імунітет.", "Тридцять — Цинк від іржі береже, кожен цвях і паркан збереже!"],
+      31: ["Ga", "Галій", "post-transition", "p", 4, 13, 69.723, 1.81, "Ортоторомбічна", "Тане просто в долоні при 29.8 °C.", "Тридцять один — Галій тане в руці, дивуються навіть знавці!"],
+      32: ["Ge", "Германій", "metalloid", "p", 4, 14, 72.63, 2.01, "Алмазна", "Перший транзисторний напівпровідник та оптоволокно.", "Германій тридцять два — оптоволоконні дива!"],
+      33: ["As", "Арсен (миш'як)", "metalloid", "p", 4, 15, 74.922, 2.18, "Ромбоедрична", "Відомий напівметал з токсичними сполуками.", "Тридцять три — Арсен суворий, в напівпровідниках прозорий!"],
+      34: ["Se", "Селен", "nonmetal", "p", 4, 16, 78.971, 2.55, "Гексагональна", "Фоточутливий елемент для ксероксів та антиоксидантів.", "Селен тридцять чотири сяє, на світло струмом відповідає!"],
+      35: ["Br", "Бром", "halogen", "p", 4, 17, 79.904, 2.96, "Ортоторомбічна", "Єдиний рідкий червоно-бурий неметал за кімнатної температури.", "Тридцять п'ять — це Бром червоний, важка рідина у короні!"],
+      36: ["Kr", "Криптон", "noble", "p", 4, 18, 83.798, 3.00, "ГЦК", "Інертний газ для спалахів та лазерів.", "Тридцять шість — Криптон лазерний, в ізоляції бездоганний!"],
+      37: ["Rb", "Рубідій", "alkali", "s", 5, 1, 85.468, 0.82, "ОЦК", "Надзвичайно активний лужний метал для атомних годинників.", "Рубідій тридцять сім спалахне вмить, секунди атомні лічить!"],
+      38: ["Sr", "Стронцій", "alkaline", "s", 5, 2, 87.62, 0.95, "ГЦК", "Забарвлює феєрверки у яскраво-червоний колір.", "Стронцій тридцять вісім — вогонь багряний у небо просимо!"],
+      39: ["Y", "Ітрій", "transition", "d", 5, 3, 88.906, 1.22, "ГПУ", "Компонент лазерів YAG та високотемпературних надпровідників.", "Ітрій тридцять дев'ять — лазерний промінь сіє!"],
+      40: ["Zr", "Цирконій", "transition", "d", 5, 4, 91.224, 1.33, "ГПУ", "Жароміцний метал для ядерних реакторів та кераміки.", "Сорок — Цирконій вогнетривкий, реактора захист міцний!"],
+      41: ["Nb", "Ніобій", "transition", "d", 5, 5, 92.906, 1.6, "ОЦК", "Метал для надпровідних магнітів томографів (МРТ).", "Ніобій сорок один — надпровідності володар і син!"],
+      42: ["Mo", "Молібден", "transition", "d", 5, 6, 95.95, 2.16, "ОЦК", "Тугоплавкий метал для броні та двигунів.", "Сорок два — Молібден тугий, гартує сплав дорогий!"],
+      43: ["Tc", "Технецій", "transition", "d", 5, 7, 98.0, 1.9, "ГПУ", "Перший штучно створений радіоактивний ізотоп для медицини.", "Сорок три — Технецій створений в лабораторії, діагностики герой в історії!"],
+      44: ["Ru", "Рутеній", "transition", "d", 5, 8, 101.07, 2.2, "ГПУ", "Платиноїд для каталізаторів та зносостійких контактів.", "Рутеній сорок чотири — шляхетний метал у мирі!"],
+      45: ["Rh", "Родій", "transition", "d", 5, 9, 102.91, 2.28, "ГЦК", "Один із найдорожчих благородних металів для каталізаторів.", "Сорок п'ять — це Родій дорогий, дзеркальний блиск золотий!"],
+      46: ["Pd", "Паладій", "transition", "d", 5, 10, 106.42, 2.20, "ГЦК", "Вбирає водень як губка (до 900 об'ємів).", "Паладій сорок шість — водень поглинає, каталіз відкриває!"],
+      47: ["Ag", "Аргентум (срібло)", "transition", "d", 5, 11, 107.87, 1.93, "ГЦК", "Найвища електро- та теплопровідність у світі.", "Сорок сім — Аргентум сяє, біле срібло кожен знає!"],
+      48: ["Cd", "Кадмій", "transition", "d", 5, 12, 112.41, 1.69, "ГПУ", "Важкий метал для акумуляторів Ni-Cd та захисних покриттів.", "Сорок вісім — Кадмій стійкий, в акумуляторах бійкий!"],
+      49: ["In", "Індій", "post-transition", "p", 5, 13, 114.82, 1.78, "Тетрагональна", "Прозорі сенсорні екрани смартфонів (ITO).", "Сорок дев'ять — Індій м'який, сенсорний екран тонкий!"],
+      50: ["Sn", "Станум (олово)", "post-transition", "p", 5, 14, 118.71, 1.96, "Тетрагональна", "Легкоплавкий метал для паяння та бронзи.", "П'ятдесят — це Станум-олово, солдатики стоять суворо!"],
+      51: ["Sb", "Стибій (сурма)", "metalloid", "p", 5, 15, 121.76, 2.05, "Ромбоедрична", "Розширюється при застиганні, метал друкарського шрифту.", "П'ятдесят один — Стибій міцний, шрифт друкарський ясний!"],
+      52: ["Te", "Телур", "metalloid", "p", 5, 16, 127.6, 2.1, "Гексагональна", "Рідкісний напівметал для сонячних батарей CdTe.", "Телур п'ятдесят два — сонячна енергія жива!"],
+      53: ["I", "Йод", "halogen", "p", 5, 17, 126.9, 2.66, "Ортоторомбічна", "Темно-фіолетові кристали для щитоподібної залози.", "П'ятдесят три — Йод кристалічний, антисептик медичний!"],
+      54: ["Xe", "Ксенон", "noble", "p", 5, 18, 131.29, 2.6, "ГЦК", "Важкий інертний газ для автомобільних фар та іонних двигунів.", "П'ятдесят чотири — Ксенон горить, іонний двигун космічний мчить!"],
+      55: ["Cs", "Цезій", "alkali", "s", 6, 1, 132.91, 0.79, "ОЦК", "Найм'якший і найактивніший метал для еталону секунди.", "Цезій п'ятдесят п'ять — точніший за всі годинники в світі!"],
+      56: ["Ba", "Барій", "alkaline", "s", 6, 2, 137.33, 0.89, "ОЦК", "Рентгеноконтрастний метал для медицини та зелених вогнів.", "П'ятдесят шість — Барій медичний, рентгенів погляд магічний!"],
+      
+      // ЛАНТАНОЇДИ (57–71)
+      57: ["La", "Лантан", "lanthanide", "f", 6, 3, 138.91, 1.1, "ГПУ", "Початок ряду лантаноїдів, оптичне скло високої чіткості.", "П'ятдесят сім — Лантан починає, рідкісні землі об'єднує й знає!"],
+      58: ["Ce", "Церій", "lanthanide", "f", 6, 3, 140.12, 1.12, "ГЦК", "Кресала запальничок та очищення вихлопних газів.", "П'ятдесят вісім — Церій іскристий, спалах вогню променистий!"],
+      59: ["Pr", "Празеодим", "lanthanide", "f", 6, 3, 140.91, 1.13, "ГПУ", "Окуляри для захисту очей зварювальників від жовтого натрієвого спалаху.", "Празеодим п'ятдесят дев'ять — зелений кристал палає!"],
+      60: ["Nd", "Неодим", "lanthanide", "f", 6, 3, 144.24, 1.14, "ГПУ", "Найпотужніші у світі постійні магніти NdFeB.", "Шістдесят — Неодим магнітний, тримає залізо непохитно!"],
+      61: ["Pm", "Прометій", "lanthanide", "f", 6, 3, 145.0, 1.13, "ГПУ", "Радіоактивний лантаноїд, атомні батареї для супутників.", "Шістдесят один — Прометій світить, атомну батарею живить!"],
+      62: ["Sm", "Самарій", "lanthanide", "f", 6, 3, 150.36, 1.17, "Ромбоедрична", "Термостійкі самарій-кобальтові магніти.", "Самарій шістдесят два — магнітна сила жива!"],
+      63: ["Eu", "Європій", "lanthanide", "f", 6, 3, 151.96, 1.2, "ОЦК", "Червоний люмінофор для захисту банкнот євро від підробок.", "Шістдесят три — Європій сяє, валюту від фальшу зберігає!"],
+      64: ["Gd", "Гадоліній", "lanthanide", "f", 6, 3, 157.25, 1.2, "ГПУ", "Контрастна речовина для магнітно-резонансної томографії (МРТ).", "Гадоліній шістдесят чотири — МРТ покаже в усій силі!"],
+      65: ["Tb", "Тербій", "lanthanide", "f", 6, 3, 158.93, 1.2, "ГПУ", "Зелений люмінофор та магнітострикційні матеріали.", "Тербій шістдесят п'ять — екрани яскраво горять!"],
+      66: ["Dy", "Диспрозій", "lanthanide", "f", 6, 3, 162.5, 1.22, "ГПУ", "Зберігає силу неодимових магнітів в електромобілях при високих температурах.", "Шістдесят шість — Диспрозій стійкий, двигун електрокара бійкий!"],
+      67: ["Ho", "Гольмій", "lanthanide", "f", 6, 3, 164.93, 1.23, "ГПУ", "Найвищий магнітний момент серед усіх хімічних елементів.", "Гольмій шістдесят сім — магнітний рекордсмен усім!"],
+      68: ["Er", "Ербій", "lanthanide", "f", 6, 3, 167.26, 1.24, "ГПУ", "Оптичні підсилювачі глобального інтернет-трафіку.", "Шістдесят вісім — Ербій лазерний, інтернет підсилює бездоганно!"],
+      69: ["Tm", "Тулій", "lanthanide", "f", 6, 3, 168.93, 1.25, "ГПУ", "Найрідкісніший лантаноїд, портативні рентген-апарати.", "Тулій шістдесят дев'ять — рентген у полі діє!"],
+      70: ["Yb", "Ітербій", "lanthanide", "f", 6, 3, 173.05, 1.1, "ГЦК", "Надточні атомні оптичні годинники.", "Сімдесят — Ітербій лазерний, час виміряє бездоганно!"],
+      71: ["Lu", "Лютецій", "lanthanide", "f", 6, 3, 174.97, 1.27, "ГПУ", "Останній і найтвердіший з лантаноїдів, детектори ПЕТ.", "Сімдесят один — Лютецій міцний, ряд лантаноїдів замикає рясний!"],
+
+      72: ["Hf", "Гафній", "transition", "d", 6, 4, 178.49, 1.3, "ГПУ", "Поглинач нейтронів у реакторах атомних підводних човнів.", "Сімдесят два — Гафній ядерний, у реакторах незамінний!"],
+      73: ["Ta", "Тантал", "transition", "d", 6, 5, 180.95, 1.5, "ОЦК", "Мініатюрні конденсатори смартфонів та хірургічні імпланти.", "Тантал сімдесят три — в мікросхемах завжди згори!"],
+      74: ["W", "Вольфрам", "transition", "d", 6, 6, 183.84, 2.36, "ОЦК", "Найбільш тугоплавкий метал (плавиться при 3422 °C).", "Сімдесят чотири — Вольфрам тугий, у лампах сяє вогник живий!"],
+      75: ["Re", "Реній", "transition", "d", 6, 7, 186.21, 1.9, "ГПУ", "Лопатки турбін надзвукових реактивних двигунів.", "Реній сімдесят п'ять — реактивні мотори свистять!"],
+      76: ["Os", "Осмій", "transition", "d", 6, 8, 190.23, 2.2, "ГПУ", "Найбільш густий метал у світі (22.59 г/см³).", "Сімдесят шість — Осмій найважчий, рекорд густини найкращий!"],
+      77: ["Ir", "Іридій", "transition", "d", 6, 9, 192.22, 2.2, "ГЦК", "Найбільш корозійностійкий метал, свічки запалювання.", "Іридій сімдесят сім — космічний астероїдний крем!"],
+      78: ["Pt", "Платина", "transition", "d", 6, 10, 195.08, 2.28, "ГЦК", "Королівський каталізатор та дорогоцінний ювелірний метал.", "Сімдесят вісім — Платина сяє, вихлоп машин очищає!"],
+      79: ["Au", "Аурум (золото)", "transition", "d", 6, 11, 196.97, 2.54, "ГЦК", "Шляхетний метал, не іржавіє, вічний еталон багатства.", "Сімдесят дев'ять — Аурум золотий, царів метал і скарб земний!"],
+      80: ["Hg", "Меркурій (ртуть)", "transition", "d", 6, 12, 200.59, 2.00, "Ромбоедрична", "Рідкий метал при звичайній температурі.", "Вісімдесят — Меркурій-ртуть, рідкі металеві краплі звуть!"],
+      81: ["Tl", "Талій", "post-transition", "p", 6, 13, 204.38, 1.62, "ГПУ", "Важкий токсичний метал для інфрачервоної оптики.", "Вісімдесят один — Талій важкий, кристал інфрачервоний плинний!"],
+      82: ["Pb", "Плюмбум (свинець)", "post-transition", "p", 6, 14, 207.2, 2.33, "ГЦК", "Затримує радіацію та рентген, основа акумуляторів авто.", "Вісімдесят два — важкий Плюмбум, свинцевий щит розсіє шум!"],
+      83: ["Bi", "Бісмут", "post-transition", "p", 6, 15, 208.98, 2.02, "Ромбоедрична", "Райдужні кристали, найменш токсичний важкий метал.", "Вісімдесят три — Бісмут веселковий, кристал безпечний і казковий!"],
+      84: ["Po", "Полоній", "post-transition", "p", 6, 16, 209.0, 2.0, "Кубічна", "Радіоактивний елемент, відкритий Марією Кюрі (на честь Польщі).", "Вісімдесят чотири — Полоній радіє, ім'я Батьківщини Марії леліє!"],
+      85: ["At", "Астат", "halogen", "p", 6, 17, 210.0, 2.2, "Ортоторомбічна", "Найрідкісніший природний елемент на Землі (лічені грами в усій корі).", "Вісімдесят п'ять — Астат невловимий, у надрах землі ледь зримий!"],
+      86: ["Rn", "Радон", "noble", "p", 6, 18, 222.0, 2.2, "ГЦК", "Важкий радіоактивний інертний газ із глибин гірських порід.", "Вісімдесят шість — Радон підземний, інертний газ і таємний!"],
+      87: ["Fr", "Францій", "alkali", "s", 7, 1, 223.0, 0.7, "ОЦК", "Надзвичайно радіоактивний та активний лужний метал.", "Вісімдесят сім — Францій зникає, за хвилину ядро розпадає!"],
+      88: ["Ra", "Радій", "alkaline", "s", 7, 2, 226.0, 0.9, "ОЦК", "Світився у темряві, проклав шлях до ядерної фізики Кюрі.", "Вісімдесят вісім — Радій світився, новий світ атома відкрився!"],
+      
+      // АКТИНОЇДИ (89–103)
+      89: ["Ac", "Актиній", "actinide", "f", 7, 3, 227.0, 1.1, "ГЦК", "Початок ряду актиноїдів, джерело нейтронів.", "Вісімдесят дев'ять — Актиній сяє, ряд актиноїдів очолює й знає!"],
+      90: ["Th", "Торій", "actinide", "f", 7, 3, 232.04, 1.3, "ГЦК", "Перспективне безпечне ядерне паливо майбутнього.", "Дев'яносто — могутній Торій, новий реактор в історії!"],
+      91: ["Pa", "Протактиній", "actinide", "f", 7, 3, 231.04, 1.5, "Тетрагональна", "Рідкісний радіоактивний розпадний елемент.", "Протактиній дев'яносто один — ядерного розпаду син!"],
+      92: ["U", "Уран", "actinide", "f", 7, 3, 238.03, 1.38, "Ортоторомбічна", "Паливо атомних електростанцій, ланцюгова реакція поділу ядер.", "Дев'яносто два — могутній Уран, енергії мирної океан!"],
+      93: ["Np", "Нептуній", "actinide", "f", 7, 3, 237.0, 1.36, "Ортоторомбічна", "Перший трансурановий штучний елемент.", "Нептуній дев'яносто три — штучні ядра твори!"],
+      94: ["Pu", "Плутоній", "actinide", "f", 7, 3, 244.0, 1.28, "Моноклінна", "Паливо для космічних апаратів «Вояджер» та ядерних реакторів.", "Дев'яносто чотири — Плутоній космічний, енергії запас вічний!"],
+      95: ["Am", "Америцій", "actinide", "f", 7, 3, 243.0, 1.3, "ГПУ", "Використовується у побутових датчиках диму та пожежній безпеці.", "Америцій дев'яносто п'ять — датчики диму від вогню захистять!"],
+      96: ["Cm", "Кюрій", "actinide", "f", 7, 3, 247.0, 1.3, "ГПУ", "Названий на честь П'єра і Марії Кюрі, джерело альфа-частинок на Марсоходах.", "Дев'яносто шість — Кюрій героям науки, в космос протягує руки!"],
+      97: ["Bk", "Берклій", "actinide", "f", 7, 3, 247.0, 1.3, "ГПУ", "Синтезований у Берклі, Каліфорнія.", "Берклій дев'яносто сім — в лабораторіях відомий усім!"],
+      98: ["Cf", "Каліфорній", "actinide", "f", 7, 3, 251.0, 1.3, "ГПУ", "Один із найдорожчих елементів у світі, потужне джерело нейтронів.", "Дев'яносто вісім — Каліфорній дорогий, нейтронів промінь живий!"],
+      99: ["Es", "Ейнштейній", "actinide", "f", 7, 3, 252.0, 1.3, "ГЦК", "Названий на честь Альберта Ейнштейна.", "Дев'яносто дев'ять — Ейнштейній мудрий, атомний тандем спорудний!"],
+      100: ["Fm", "Фермій", "actinide", "f", 7, 3, 257.0, 1.3, "ГЦК", "Названий на честь творця першого ядерного реактора Енріко Фермі.", "Сотня — це Фермій славетний, фізик реактора предметний!"],
+      101: ["Md", "Менделєвій", "actinide", "f", 7, 3, 258.0, 1.3, "Кубічна", "Названий на честь творця Періодичної системи Дмитра Менделєєва.", "Сто один — Менделєвій гордо стоїть, закону таблиці вічно горить!"],
+      102: ["No", "Нобелій", "actinide", "f", 7, 3, 259.0, 1.3, "ГЦК", "Названий на честь Альфреда Нобеля.", "Сто два — це Нобелій премій, в науці крок не даремний!"],
+      103: ["Lr", "Лоуренсій", "actinide", "f", 7, 3, 266.0, 1.3, "ГПУ", "Замикає ряд актиноїдів, винахідник циклотрона Ернест Лоуренс.", "Сто три — Лоуренсій циклотронний, ряд актиноїдів завершив законний!"],
+
+      // ТРАНСАКТИНОЇДИ (104–118)
+      104: ["Rf", "Резерфордій", "transition", "d", 7, 4, 267.0, null, "ГПУ", "Названий на честь батька ядерної фізики Ернеста Резерфорда.", "Сто чотири — Резерфордій ясний, планетарний атом прекрасний!"],
+      105: ["Db", "Дубній", "transition", "d", 7, 5, 268.0, null, "ОЦК", "Синтезований у лабораторії ядерних реакцій в Дубні.", "Сто п'ять — це Дубній в прискорювачі мчить, фізика ядерна творить і вчить!"],
+      106: ["Sg", "Сіборгій", "transition", "d", 7, 6, 269.0, null, "ОЦК", "Названий на честь нобелівського лауреата Гленна Сіборга.", "Сто шість — Сіборгій синтетичний, вченого внесок практичний!"],
+      107: ["Bh", "Борій", "transition", "d", 7, 7, 270.0, null, "ГПУ", "Названий на честь творця квантової моделі атома Нільса Бора.", "Сто сім — це Борій квантовий, орбіталей майстер фондовий!"],
+      108: ["Hs", "Гасій", "transition", "d", 7, 8, 277.0, null, "ГПУ", "Названий на честь землі Гессен у Німеччині (Дармштадт).", "Сто вісім — Гасій народжений в мить, німецька наука в атомах дзвенить!"],
+      109: ["Mt", "Мейтнерій", "transition", "d", 7, 9, 278.0, null, "ГЦК", "Названий на честь видатної фізикині Лізи Майтнер.", "Сто дев'ять — Мейтнерій на честь Лізи, поділ ядра подолав усі кризи!"],
+      110: ["Ds", "Дармштадтій", "transition", "d", 7, 10, 281.0, null, "ОЦК", "Синтезований у Центрі дослідження важких іонів у Дармштадті.", "Сто десять — Дармштадтій надважкий, синтезу атомного крок тривкий!"],
+      111: ["Rg", "Рентгеній", "transition", "d", 7, 11, 282.0, null, "ОЦК", "Названий на честь відкривача X-променів Вільгельма Рентгена.", "Сто одинадцять — Рентгеній сяйливий, рентгенівських променів геній сміливий!"],
+      112: ["Cn", "Коперницій", "transition", "d", 7, 12, 285.0, null, "ГПУ", "Названий на честь астронома Миколая Коперника.", "Сто дванадцять — Коперницій зірковий, сонячний світ відкрив пречудовий!"],
+      113: ["Nh", "Ніхоній", "post-transition", "p", 7, 13, 286.0, null, "ГПУ", "Перший хімічний елемент, відкритий у країнах Азії (Японія/Ніхон).", "Сто тринадцять — Ніхоній східний, прапором сонця японського гідний!"],
+      114: ["Fl", "Флеровій", "post-transition", "p", 7, 14, 289.0, null, "ГЦК", "«Острів стабільності» надважких ядер, названий на честь Г. Фльорова.", "Сто чотирнадцять — Флеровій стоїть, острів стабільності в морі відкрить!"],
+      115: ["Mc", "Московій", "post-transition", "p", 7, 15, 290.0, null, "ОЦК", "Синтетичний надважкий елемент 15 групи.", "Сто п'ятнадцять — атомний сплеск, прискорювач бачить невидимий блеск!"],
+      116: ["Lv", "Ліверморій", "post-transition", "p", 7, 16, 293.0, null, "Ортоторомбічна", "Синтезований за участю Ліверморської національної лабораторії.", "Сто шістнадцять — Ліверморій в науці, ядерні сили в міцній поруці!"],
+      117: ["Ts", "Теннессин", "halogen", "p", 7, 17, 294.0, null, "Ортоторомбічна", "Надважкий штучний галоген, відкритий у штаті Теннессі.", "Сто сімнадцять — Теннессин новий, галогенів ряд синтезовий!"],
+      118: ["Og", "Оганесон", "noble", "p", 7, 18, 294.0, null, "ГЦК", "Найважчий елемент таблиці, названий на честь Юрія Оганесяна.", "Сто вісімнадцять — Оганесон, таблиці Менделєєва кордон! Останній номер замикає, науку в майбуття пускає!"]
+    };
+
+    // ФОРМУВАННЯ ЄДИНОЇ БАЗИ elementsDB
+    const elementsDB = [];
+    for (let z = 1; z <= 118; z++) {
+      const data = masterElementsList[z];
+      elementsDB.push({
+        z: z,
+        s: data[0],
+        name: data[1],
+        cat: data[2],
+        block: data[3],
+        period: data[4],
+        group: data[5],
+        mass: data[6],
+        en: data[7],
+        crystal: data[8],
+        desc: data[9],
+        rhyme: data[10],
+        shells: calculateRealElectronShells(z),
+        config: `[Z=${z}] shells: ${calculateRealElectronShells(z).join(', ')}`,
+        ox: z <= 2 ? (z === 1 ? "-1, +1" : "0") : z % 2 === 0 ? "+2, +4" : "+1, +3, +5",
+        r: Math.round(30 + (z % 30) * 4),
+        ion: +(4.0 + (z % 10) * 0.9).toFixed(1),
+        sampleDesc: `Зразок елемента ${data[1]} (${data[0]}). Чистота відповідає стандарту дослідження.`,
+        img: getElementImageUrl(z),
+        spectrum: (z === 1 ? [656.3, 486.1, 434.0, 410.2] : z === 2 ? [706.5, 587.6, 501.6] : z === 10 ? [640.2, 585.2] : z === 11 ? [589.0, 589.6] : [400 + (z * 2.7) % 320, 450 + (z * 4.1) % 280])
+      });
+    }
+
+    const categoryColors = {
+      nonmetal: "bg-sky-950/80 border-sky-600 text-sky-200",
+      noble: "bg-purple-950/80 border-purple-600 text-purple-200",
+      alkali: "bg-rose-950/80 border-rose-600 text-rose-200",
+      alkaline: "bg-amber-950/80 border-amber-600 text-amber-200",
+      metalloid: "bg-emerald-950/80 border-emerald-600 text-emerald-200",
+      halogen: "bg-teal-950/80 border-teal-600 text-teal-200",
+      transition: "bg-indigo-950/80 border-indigo-600 text-indigo-200",
+      "post-transition": "bg-blue-950/80 border-blue-600 text-blue-200",
+      lanthanide: "bg-yellow-950/80 border-yellow-600 text-yellow-200",
+      actinide: "bg-red-950/80 border-red-600 text-red-200"
+    };
+
+    const blockColors = {
+      s: "bg-rose-950/80 border-rose-500 text-rose-200",
+      p: "bg-sky-950/80 border-sky-500 text-sky-200",
+      d: "bg-amber-950/80 border-amber-500 text-amber-200",
+      f: "bg-emerald-950/80 border-emerald-500 text-emerald-200"
+    };
+
+    let currentMode = 'category';
+    let currentModalElement = null;
+    let currentCardIndex = 0;
+    let quizScore = 0;
+    let activeQuizElement = null;
+    let currentGalleryImages = [];
+    let currentGalleryIdx = 0;
+    let spectrumMode = 'emission';
+
+    function renderPeriodicTable() {
+      const mainGrid = document.getElementById('mainPeriodicTable');
+      const lanthRow = document.getElementById('lanthanidesRow');
+      const actRow = document.getElementById('actinidesRow');
+      
+      mainGrid.innerHTML = '';
+      while (lanthRow.children.length > 1) lanthRow.removeChild(lanthRow.lastChild);
+      while (actRow.children.length > 1) actRow.removeChild(actRow.lastChild);
+
+      const gridMap = Array.from({ length: 7 }, () => Array(18).fill(null));
+
+      elementsDB.forEach(elem => {
+        if (elem.z >= 57 && elem.z <= 71) {
+          lanthRow.appendChild(createElemTile(elem));
+          return;
+        }
+        if (elem.z >= 89 && elem.z <= 103) {
+          actRow.appendChild(createElemTile(elem));
+          return;
+        }
+        if (elem.period <= 7 && elem.group <= 18) {
+          gridMap[elem.period - 1][elem.group - 1] = elem;
+        }
+      });
+
+      for (let r = 0; r < 7; r++) {
+        for (let c = 0; c < 18; c++) {
+          if (r === 5 && c === 2) {
+            const ph = document.createElement('div');
+            ph.className = "rounded-xl border border-dashed border-amber-600/60 p-2 text-center flex flex-col justify-center items-center bg-amber-950/20";
+            ph.innerHTML = `<span class="text-[10px] font-mono text-amber-400">57-71</span><span class="text-[9px] text-slate-400">La-Lu</span>`;
+            mainGrid.appendChild(ph);
+            continue;
+          }
+          if (r === 6 && c === 2) {
+            const ph = document.createElement('div');
+            ph.className = "rounded-xl border border-dashed border-rose-600/60 p-2 text-center flex flex-col justify-center items-center bg-rose-950/20";
+            ph.innerHTML = `<span class="text-[10px] font-mono text-rose-400">89-103</span><span class="text-[9px] text-slate-400">Ac-Lr</span>`;
+            mainGrid.appendChild(ph);
+            continue;
+          }
+
+          const elem = gridMap[r][c];
+          if (elem) {
+            mainGrid.appendChild(createElemTile(elem));
+          } else {
+            const emptyCell = document.createElement('div');
+            emptyCell.className = "h-16";
+            mainGrid.appendChild(emptyCell);
+          }
+        }
+      }
+    }
+
+    function createElemTile(elem) {
+      const tile = document.createElement('div');
+      tile.id = `elem-tile-${elem.z}`;
+      tile.onclick = () => openElementModal(elem.z);
+
+      let colorClass = categoryColors[elem.cat] || "bg-slate-800 border-slate-700 text-slate-200";
+      if (currentMode === 'block') colorClass = blockColors[elem.block];
+      else if (currentMode === 'electro') {
+        colorClass = elem.en ? (elem.en < 1.5 ? "bg-emerald-950 border-emerald-600" : elem.en < 2.5 ? "bg-amber-950 border-amber-600" : "bg-rose-950 border-rose-600") : "bg-slate-900 border-slate-800";
+      }
+
+      tile.className = `elem-card h-[72px] rounded-xl border p-1.5 flex flex-col justify-between ${colorClass}`;
+      tile.innerHTML = `
+        <div class="flex justify-between items-start text-[10px] font-mono leading-none">
+          <span class="font-bold opacity-80">${elem.z}</span>
+          <span class="text-[9px] opacity-60">${elem.en || ''}</span>
+        </div>
+        <div class="text-center font-mono font-black text-base tracking-tight leading-none">${elem.s}</div>
+        <div class="text-[9px] text-center truncate font-medium opacity-90 leading-tight">${elem.name.split(' ')[0]}</div>
+      `;
+      return tile;
+    }
+
+    function setDisplayMode(mode) {
+      currentMode = mode;
+      document.getElementById('modeCategory').className = `px-3 py-1.5 text-xs font-semibold rounded-lg ${mode === 'category' ? 'bg-cyan-600 text-white' : 'text-slate-300'}`;
+      document.getElementById('modeBlock').className = `px-3 py-1.5 text-xs font-semibold rounded-lg ${mode === 'block' ? 'bg-cyan-600 text-white' : 'text-slate-300'}`;
+      document.getElementById('modeElectro').className = `px-3 py-1.5 text-xs font-semibold rounded-lg ${mode === 'electro' ? 'bg-cyan-600 text-white' : 'text-slate-300'}`;
+      renderPeriodicTable();
+    }
+
+    function handleSearch(val) {
+      const q = val.trim().toLowerCase();
+      elementsDB.forEach(elem => {
+        const tile = document.getElementById(`elem-tile-${elem.z}`);
+        if (!tile) return;
+        const match = !q || elem.name.toLowerCase().includes(q) || elem.s.toLowerCase().includes(q) || elem.z.toString() === q;
+        tile.style.opacity = match ? '1' : '0.15';
+        tile.style.filter = match ? 'none' : 'grayscale(80%)';
+      });
+    }
+
+    function filterCategory(cat) {
+      elementsDB.forEach(elem => {
+        const tile = document.getElementById(`elem-tile-${elem.z}`);
+        if (!tile) return;
+        const match = cat === 'all' || elem.cat === cat;
+        tile.style.opacity = match ? '1' : '0.15';
+        tile.style.filter = match ? 'none' : 'grayscale(80%)';
+      });
+    }
+
+    function openElementModal(z) {
+      const elem = elementsDB.find(e => e.z === z);
+      if (!elem) return;
+      currentModalElement = elem;
+
+      document.getElementById('modalSymbol').innerText = elem.s;
+      document.getElementById('modalName').innerText = elem.name;
+      document.getElementById('modalNumberBadge').innerText = `№ ${elem.z}`;
+      document.getElementById('modalCategoryBadge').innerText = `${elem.cat.toUpperCase()} • Період ${elem.period}, Група ${elem.group} • Блок ${elem.block.toUpperCase()}`;
+      document.getElementById('bohrConfigText').innerText = `Конфігурація: ${elem.config}`;
+      document.getElementById('modalVerse').innerText = `«${elem.rhyme}»`;
+
+      document.getElementById('propMass').innerText = `${elem.mass} а.о.м.`;
+      document.getElementById('propElectro').innerText = elem.en ? `${elem.en} (χ)` : '—';
+      document.getElementById('propOxidation').innerText = elem.ox;
+      document.getElementById('propRadius').innerText = `${elem.r} пм`;
+      document.getElementById('propIonization').innerText = `${elem.ion} еВ`;
+      document.getElementById('propCrystal').innerText = elem.crystal;
+      document.getElementById('modalDescription').innerText = elem.desc;
+      document.getElementById('modalSampleDesc').innerText = elem.sampleDesc;
+
+      if (galleryManifest[z] && galleryManifest[z].length > 0) {
+        currentGalleryImages = galleryManifest[z];
+      } else {
+        currentGalleryImages = [elem.img];
+      }
+      currentGalleryIdx = 0;
+      updateGalleryView();
+
+      renderSpectrum(elem.spectrum || []);
+      document.getElementById('elementModal').classList.remove('hidden');
+
+      active3DElem = elem;
+      update3DModeUI();
+      resizeCanvasToDisplaySize();
+    }
+
+    function updateGalleryView() {
+      const img = document.getElementById('modalSampleImg');
+      const counter = document.getElementById('galleryCounter');
+      const thumbContainer = document.getElementById('galleryThumbnails');
+      
+      img.src = currentGalleryImages[currentGalleryIdx] || '';
+      counter.innerText = `${currentGalleryIdx + 1} / ${currentGalleryImages.length}`;
+
+      thumbContainer.innerHTML = '';
+      if (currentGalleryImages.length > 1) {
+        currentGalleryImages.forEach((src, idx) => {
+          const thumb = document.createElement('img');
+          thumb.src = src;
+          thumb.className = `w-7 h-7 object-cover rounded cursor-pointer border ${idx === currentGalleryIdx ? 'border-cyan-400' : 'border-slate-700 opacity-60'}`;
+          thumb.onclick = (e) => { e.stopPropagation(); currentGalleryIdx = idx; updateGalleryView(); };
+          thumbContainer.appendChild(thumb);
+        });
+      }
+    }
+
+    function gallerySlide(dir) {
+      if (!currentGalleryImages.length) return;
+      currentGalleryIdx = (currentGalleryIdx + dir + currentGalleryImages.length) % currentGalleryImages.length;
+      updateGalleryView();
+    }
+
+    function openLightbox() {
+      const src = currentGalleryImages[currentGalleryIdx];
+      if (!src) return;
+      document.getElementById('lightboxImg').src = src;
+      document.getElementById('lightboxModal').classList.remove('hidden');
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightboxModal').classList.add('hidden');
+    }
+
+    function navigateModal(step) {
+      if (!currentModalElement) return;
+      let nextZ = ((currentModalElement.z - 1 + step + 118) % 118) + 1;
+      openElementModal(nextZ);
+    }
+
+    function closeModal() {
+      document.getElementById('elementModal').classList.add('hidden');
+    }
+
+    function handleSampleImageError(img) {
+      img.onerror = null;
+      const elem = currentModalElement || elementsDB[0];
+      img.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" rx="16" fill="%231e293b"/><text x="60" y="55" fill="%23ffffff" font-size="28" font-family="monospace" text-anchor="middle">${elem.s}</text><text x="60" y="75" fill="%2338bdf8" font-size="11" text-anchor="middle">№ ${elem.z}</text></svg>`;
+    }
+
+    function toggleSpectrumType() {
+      spectrumMode = spectrumMode === 'emission' ? 'absorption' : 'emission';
+      document.getElementById('spectrumTypeBtn').innerText = spectrumMode === 'emission' ? 'Емісійний' : 'Абсорбційний';
+      if (currentModalElement) renderSpectrum(currentModalElement.spectrum);
+    }
+
+    function renderSpectrum(lines) {
+      const container = document.getElementById('modalSpectrumBar');
+      container.innerHTML = '';
+      
+      if (spectrumMode === 'absorption') {
+        container.style.background = 'linear-gradient(to right, rgb(110,0,180), rgb(0,0,255), rgb(0,255,255), rgb(0,255,0), rgb(255,255,0), rgb(255,0,0))';
+      } else {
+        container.style.background = '#05070c';
+      }
+
+      if (!lines || !lines.length) return;
+
+      lines.forEach(wl => {
+        const leftPercent = ((wl - 380) / (750 - 380)) * 100;
+        if (leftPercent >= 0 && leftPercent <= 100) {
+          const lineEl = document.createElement('div');
+          lineEl.className = 'spectral-line';
+          lineEl.style.left = `${leftPercent}%`;
+          lineEl.style.backgroundColor = spectrumMode === 'absorption' ? '#000000' : wavelengthToColor(wl);
+          lineEl.style.boxShadow = spectrumMode === 'absorption' ? 'none' : `0 0 4px ${wavelengthToColor(wl)}`;
+          container.appendChild(lineEl);
+        }
+      });
+    }
+
+    function wavelengthToColor(wl) {
+      let r = 0, g = 0, b = 0;
+      if (wl >= 380 && wl < 440) { r = -(wl - 440) / 60; b = 1; }
+      else if (wl >= 440 && wl < 490) { g = (wl - 440) / 50; b = 1; }
+      else if (wl >= 490 && wl < 510) { g = 1; b = -(wl - 510) / 20; }
+      else if (wl >= 510 && wl < 580) { r = (wl - 510) / 70; g = 1; }
+      else if (wl >= 580 && wl < 645) { r = 1; g = -(wl - 645) / 65; }
+      else if (wl >= 645) { r = 1; }
+      return `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
+    }
+
+    function speakMnemonic() {
+      if (!currentModalElement || !('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(currentModalElement.rhyme);
+      utter.lang = 'uk-UA';
+      window.speechSynthesis.speak(utter);
+    }
+
+    // 3D РУШІЙ
+    let current3DMode = 'bohr';
+    let active3DElem = elementsDB[0];
+    let bohrCanvas, bohrCtx;
+    let rotX = 0.35, rotY = 0.55;
+    let isDragging = false, lastMouseX = 0, lastMouseY = 0;
+    let animTime = 0;
+
+    function set3DMode(mode) {
+      current3DMode = mode;
+      update3DModeUI();
+    }
+
+    function update3DModeUI() {
+      const btnBohr = document.getElementById('btnViewBohr');
+      const btnLat = document.getElementById('btnViewLattice');
+      const badge = document.getElementById('latticeTypeBadge');
+      if (!btnBohr || !btnLat || !badge) return;
+
+      if (current3DMode === 'bohr') {
+        btnBohr.className = "px-3 py-1.5 text-xs font-bold rounded-lg bg-cyan-600 text-white flex items-center gap-1.5 transition";
+        btnLat.className = "px-3 py-1.5 text-xs font-bold rounded-lg text-slate-400 hover:text-white flex items-center gap-1.5 transition";
+        badge.classList.add('hidden');
+      } else {
+        btnLat.className = "px-3 py-1.5 text-xs font-bold rounded-lg bg-indigo-600 text-white flex items-center gap-1.5 transition";
+        btnBohr.className = "px-3 py-1.5 text-xs font-bold rounded-lg text-slate-400 hover:text-white flex items-center gap-1.5 transition";
+        badge.innerText = active3DElem.crystal;
+        badge.classList.remove('hidden');
+      }
+    }
+
+    function resizeCanvasToDisplaySize() {
+      if (!bohrCanvas) return;
+      const rect = bohrCanvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      bohrCanvas.width = Math.round(rect.width * dpr);
+      bohrCanvas.height = Math.round(rect.height * dpr);
+    }
+
+    function initBohrEngine() {
+      bohrCanvas = document.getElementById('bohrCanvas');
+      if (!bohrCanvas) return;
+      bohrCtx = bohrCanvas.getContext('2d');
+
+      window.addEventListener('resize', resizeCanvasToDisplaySize);
+
+      bohrCanvas.addEventListener('mousedown', (e) => { isDragging = true; lastMouseX = e.clientX; lastMouseY = e.clientY; });
+      window.addEventListener('mouseup', () => isDragging = false);
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        rotY += (e.clientX - lastMouseX) * 0.01;
+        rotX += (e.clientY - lastMouseY) * 0.01;
+        lastMouseX = e.clientX; lastMouseY = e.clientY;
+      });
+
+      requestAnimationFrame(main3DLoop);
+    }
+
+    function main3DLoop() {
+      animTime += 0.02;
+      resizeCanvasToDisplaySize();
+      if (current3DMode === 'bohr') drawBohrFrame();
+      else drawLatticeFrame();
+      requestAnimationFrame(main3DLoop);
+    }
+
+    function drawBohrFrame() {
+      if (!bohrCtx || !bohrCanvas) return;
+      const w = bohrCanvas.width, h = bohrCanvas.height;
+      if (!w || !h) return;
+      const cx = w / 2, cy = h / 2;
+
+      bohrCtx.clearRect(0, 0, w, h);
+      const grad = bohrCtx.createRadialGradient(cx, cy, 10, cx, cy, Math.max(w, h) / 1.8);
+      grad.addColorStop(0, '#091e3a');
+      grad.addColorStop(1, '#020617');
+      bohrCtx.fillStyle = grad;
+      bohrCtx.fillRect(0, 0, w, h);
+
+      const elem = active3DElem || elementsDB[0];
+      const shells = elem.shells && elem.shells.length ? elem.shells : [elem.z];
+      const stepRadius = (Math.min(w, h) * 0.44) / (shells.length + 1);
+
+      bohrCtx.beginPath();
+      bohrCtx.arc(cx, cy, 10 + Math.sin(animTime * 3) * 1.5, 0, Math.PI * 2);
+      bohrCtx.fillStyle = '#06b6d4';
+      bohrCtx.shadowColor = '#38bdf8';
+      bohrCtx.shadowBlur = 16;
+      bohrCtx.fill();
+      bohrCtx.shadowBlur = 0;
+
+      bohrCtx.fillStyle = '#ffffff';
+      bohrCtx.font = "bold 11px monospace";
+      bohrCtx.textAlign = 'center';
+      bohrCtx.textBaseline = 'middle';
+      bohrCtx.fillText(elem.s, cx, cy);
+
+      shells.forEach((count, sIdx) => {
+        const radius = stepRadius * (sIdx + 1.2);
+        const tilt = (sIdx * Math.PI) / (shells.length + 1) + rotX;
+
+        bohrCtx.save();
+        bohrCtx.translate(cx, cy);
+        bohrCtx.rotate(rotY + sIdx * 0.45);
+
+        bohrCtx.beginPath();
+        bohrCtx.ellipse(0, 0, radius, Math.max(radius * Math.abs(Math.cos(tilt)), 3), 0, 0, Math.PI * 2);
+        bohrCtx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+        bohrCtx.lineWidth = 1.2;
+        bohrCtx.stroke();
+
+        for (let i = 0; i < count; i++) {
+          const ang = animTime * (1.6 / (sIdx + 1)) + (i * Math.PI * 2 / count);
+          bohrCtx.beginPath();
+          bohrCtx.arc(radius * Math.cos(ang), radius * Math.sin(ang) * Math.cos(tilt), 3.8, 0, Math.PI * 2);
+          bohrCtx.fillStyle = '#facc15';
+          bohrCtx.fill();
+        }
+        bohrCtx.restore();
+      });
+    }
+
+    function drawLatticeFrame() {
+      if (!bohrCtx || !bohrCanvas) return;
+      const w = bohrCanvas.width, h = bohrCanvas.height;
+      if (!w || !h) return;
+      const cx = w / 2, cy = h / 2;
+
+      bohrCtx.clearRect(0, 0, w, h);
+      bohrCtx.fillStyle = '#020617';
+      bohrCtx.fillRect(0, 0, w, h);
+
+      const elem = active3DElem || elementsDB[0];
+      const c = 0.52;
+      const nodes = [
+        {x: -c, y: -c, z: -c}, {x: c, y: -c, z: -c}, {x: c, y: c, z: -c}, {x: -c, y: c, z: -c},
+        {x: -c, y: -c, z: c}, {x: c, y: -c, z: c}, {x: c, y: c, z: c}, {x: -c, y: c, z: c},
+        {x: 0, y: 0, z: 0, color: '#f59e0b', r: 10}
+      ];
+      const edges = [
+        [0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7],
+        [8,0],[8,1],[8,2],[8,3],[8,4],[8,5],[8,6],[8,7]
+      ];
+
+      const scale = Math.min(w, h) * 0.38;
+      const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+      const cosY = Math.cos(rotY + animTime * 0.25), sinY = Math.sin(rotY + animTime * 0.25);
+
+      const proj = nodes.map(n => {
+        let x1 = n.x * cosY + n.z * sinY, y1 = n.y, z1 = -n.x * sinY + n.z * cosY;
+        let x2 = x1, y2 = y1 * cosX - z1 * sinX, z2 = y1 * sinX + z1 * cosX;
+        let p = 3.5 / (3.5 + z2);
+        return { sx: cx + x2 * scale * p, sy: cy + y2 * scale * p, z: z2, r: (n.r || 8) * p, color: n.color || '#38bdf8' };
+      });
+
+      edges.forEach(e => {
+        bohrCtx.beginPath();
+        bohrCtx.moveTo(proj[e[0]].sx, proj[e[0]].sy);
+        bohrCtx.lineTo(proj[e[1]].sx, proj[e[1]].sy);
+        bohrCtx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+        bohrCtx.lineWidth = 2;
+        bohrCtx.stroke();
+      });
+
+      proj.sort((a,b) => b.z - a.z).forEach(n => {
+        bohrCtx.beginPath();
+        bohrCtx.arc(n.sx, n.sy, Math.max(3, n.r), 0, Math.PI * 2);
+        bohrCtx.fillStyle = n.color;
+        bohrCtx.fill();
+      });
+    }
+
+    function initCompareSelects() {
+      const sA = document.getElementById('compareSelectA');
+      const sB = document.getElementById('compareSelectB');
+      sA.innerHTML = ''; sB.innerHTML = '';
+      elementsDB.forEach(e => {
+        sA.innerHTML += `<option value="${e.z}">${e.z}. ${e.name}</option>`;
+        sB.innerHTML += `<option value="${e.z}">${e.z}. ${e.name}</option>`;
+      });
+      sB.selectedIndex = 1;
+      updateCompareView();
+    }
+
+    function updateCompareView() {
+      const eA = elementsDB[document.getElementById('compareSelectA').value - 1];
+      const eB = elementsDB[document.getElementById('compareSelectB').value - 1];
+      
+      const renderDetails = (e) => `
+        <div class="p-3 bg-slate-950 rounded-xl space-y-2">
+          <div class="flex justify-between"><span>Символ:</span><strong class="font-mono text-cyan-400">${e.s} (№${e.z})</strong></div>
+          <div class="flex justify-between"><span>Категорія:</span><span>${e.cat}</span></div>
+          <div class="flex justify-between"><span>Атомна маса:</span><span class="font-mono">${e.mass} а.о.м.</span></div>
+          <div class="flex justify-between"><span>Електронегативність:</span><span class="font-mono">${e.en || '—'}</span></div>
+          <div class="flex justify-between"><span>Радіус:</span><span class="font-mono">${e.r} пм</span></div>
+          <div class="flex justify-between"><span>Кристалічна ґратка:</span><span>${e.crystal}</span></div>
+        </div>
+      `;
+      document.getElementById('compareDetailsA').innerHTML = renderDetails(eA);
+      document.getElementById('compareDetailsB').innerHTML = renderDetails(eB);
+    }
+
+    const knownReactions = {
+      "H+O": { formula: "2H₂ + O₂ → 2H₂O", name: "Вода (Оксид гідрогену)", desc: "Екзотермічна реакція горіння з виділенням тепла та чистих водяних крапель." },
+      "Na+Cl": { formula: "2Na + Cl₂ → 2NaCl", name: "Кухонна сіль (Хлорид натрію)", desc: "Вибуховий метал і токсичний газ об'єднуються в життєво необхідну кухонну сіль." },
+      "C+O": { formula: "C + O₂ → CO₂", name: "Вуглекислий газ (Діоксид карбону)", desc: "Повне окиснення вуглецю, основа дихання рослин та фотосинтезу." },
+      "Fe+O": { formula: "4Fe + 3O₂ → 2Fe₂O₃", name: "Іржа (Оксид заліза III)", desc: "Повільне окиснення заліза у вологому повітрі." }
+    };
+
+    function initReactionSelects() {
+      const s1 = document.getElementById('reactionElem1');
+      const s2 = document.getElementById('reactionElem2');
+      s1.innerHTML = ''; s2.innerHTML = '';
+      elementsDB.forEach(e => {
+        s1.innerHTML += `<option value="${e.s}">${e.s} — ${e.name}</option>`;
+        s2.innerHTML += `<option value="${e.s}">${e.s} — ${e.name}</option>`;
+      });
+      s2.selectedIndex = 7;
+    }
+
+    function synthesizeReaction() {
+      const s1 = document.getElementById('reactionElem1').value;
+      const s2 = document.getElementById('reactionElem2').value;
+      const key1 = `${s1}+${s2}`;
+      const key2 = `${s2}+${s1}`;
+      const res = knownReactions[key1] || knownReactions[key2];
+
+      const box = document.getElementById('reactionResultBox');
+      box.classList.remove('hidden');
+
+      if (res) {
+        box.innerHTML = `
+          <div class="text-xs font-bold uppercase tracking-wider text-cyan-400">Успішний синтез!</div>
+          <div class="text-xl font-black font-mono text-white">${res.formula}</div>
+          <div class="text-sm font-semibold text-slate-200">${res.name}</div>
+          <p class="text-xs text-slate-300 leading-relaxed">${res.desc}</p>
+        `;
+      } else {
+        box.innerHTML = `
+          <div class="text-xs font-bold uppercase tracking-wider text-amber-400">Складна або інертна сполука</div>
+          <div class="text-base font-bold text-white">${s1} + ${s2}</div>
+          <p class="text-xs text-slate-300">Пряма бінарна реакція за стандартних умов потребує каталізаторів або елементи належать до благородних груп.</p>
+        `;
+      }
+    }
+
+    let isFlipped = false;
+    function flipCard() {
+      isFlipped = !isFlipped;
+      document.getElementById('flashcardInner').style.transform = isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)';
+    }
+
+    function renderFlashcard(idx) {
+      currentCardIndex = (idx + elementsDB.length) % elementsDB.length;
+      isFlipped = false;
+      document.getElementById('flashcardInner').style.transform = 'rotateY(0deg)';
+
+      const elem = elementsDB[currentCardIndex];
+      document.getElementById('fcNumber').innerText = `№ ${elem.z}`;
+      document.getElementById('fcCategory').innerText = elem.cat;
+      document.getElementById('fcSymbol').innerText = elem.s;
+      document.getElementById('fcName').innerText = elem.name;
+      document.getElementById('fcMass').innerText = `${elem.mass} а.о.м.`;
+      
+      const fcImg = document.getElementById('fcSampleImg');
+      fcImg.innerHTML = `<img src="${elem.img}" class="w-full h-full object-cover rounded-xl" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'100\\' height=\\'100\\'><rect width=\\'100\\' height=\\'100\\' fill=\\'%231e293b\\'/><text x=\\'50\\' y=\\'55\\' fill=\\'%2338bdf8\\' font-size=\\'18\\' font-family=\\'monospace\\' text-anchor=\\'middle\\'>${elem.s}</text></svg>'">`;
+
+      document.getElementById('fcBackSymbol').innerText = elem.s;
+      document.getElementById('fcMnemonicVerse').innerText = `«${elem.rhyme}»`;
+      document.getElementById('fcFact').innerText = elem.desc;
+      document.getElementById('cardCounter').innerText = `${currentCardIndex + 1} / ${elementsDB.length}`;
+    }
+
+    function prevCard() { renderFlashcard(currentCardIndex - 1); }
+    function nextCard() { renderFlashcard(currentCardIndex + 1); }
+
+    function generateQuizQuestion() {
+      document.getElementById('quizFeedbackBox').classList.add('hidden');
+      document.getElementById('quizNextBtn').classList.add('hidden');
+
+      const target = elementsDB[Math.floor(Math.random() * elementsDB.length)];
+      activeQuizElement = target;
+
+      const qTypes = ['rhyme', 'number', 'symbol'];
+      const qType = qTypes[Math.floor(Math.random() * qTypes.length)];
+
+      const qText = document.getElementById('quizQuestionText');
+      const qPrompt = document.getElementById('quizPromptBox');
+
+      if (qType === 'rhyme') {
+        qText.innerText = "Який елемент описано в цій мнемонічній римі?";
+        qPrompt.innerText = `«${target.rhyme.replace(new RegExp(target.name.split(' ')[0], 'gi'), '_____')}»`;
+      } else if (qType === 'number') {
+        qText.innerText = `Який елемент має атомний номер № ${target.z}?`;
+        qPrompt.innerText = `Період: ${target.period}, Група: ${target.group}`;
+      } else {
+        qText.innerText = `Який хімічний символ належить елементу «${target.name}»?`;
+        qPrompt.innerText = `Атомна маса: ~${Math.round(target.mass)} а.о.м.`;
+      }
+
+      const options = [target];
+      while (options.length < 4) {
+        const rand = elementsDB[Math.floor(Math.random() * elementsDB.length)];
+        if (!options.some(o => o.z === rand.z)) options.push(rand);
+      }
+      options.sort(() => Math.random() - 0.5);
+
+      const cont = document.getElementById('quizOptionsContainer');
+      cont.innerHTML = '';
+      options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = "w-full text-left p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-semibold text-white transition flex justify-between";
+        btn.innerHTML = `<span>${opt.name}</span><span class="font-mono text-cyan-400 font-bold">${opt.s} (№${opt.z})</span>`;
+        btn.onclick = () => checkQuizAnswer(opt, btn);
+        cont.appendChild(btn);
+      });
+    }
+
+    function checkQuizAnswer(selected, btn) {
+      const fb = document.getElementById('quizFeedbackBox');
+      const nextBtn = document.getElementById('quizNextBtn');
+      document.getElementById('quizOptionsContainer').querySelectorAll('button').forEach(b => b.disabled = true);
+
+      if (selected.z === activeQuizElement.z) {
+        quizScore += 10;
+        btn.classList.add('bg-emerald-600', 'border-emerald-500');
+        fb.className = "p-4 rounded-xl text-sm bg-emerald-950/80 border border-emerald-600 text-emerald-200";
+        fb.innerHTML = `<strong>Вірно!</strong> Це <strong>${activeQuizElement.name} (${activeQuizElement.s})</strong>.`;
+      } else {
+        btn.classList.add('bg-rose-600', 'border-rose-500');
+        fb.className = "p-4 rounded-xl text-sm bg-rose-950/80 border border-rose-600 text-rose-200";
+        fb.innerHTML = `<strong>Помилка!</strong> Це був <strong>${activeQuizElement.name} (${activeQuizElement.s})</strong>.`;
+      }
+
+      document.getElementById('quizScoreBadge').innerText = `Рахунок: ${quizScore}`;
+      localStorage.setItem('chemo_score', quizScore);
+      fb.classList.remove('hidden');
+      nextBtn.classList.remove('hidden');
+    }
+
+    function switchView(view) {
+      document.getElementById('viewTable').classList.toggle('hidden', view !== 'table');
+      document.getElementById('viewCards').classList.toggle('hidden', view !== 'cards');
+      document.getElementById('viewCompare').classList.toggle('hidden', view !== 'compare');
+      document.getElementById('viewSandbox').classList.toggle('hidden', view !== 'sandbox');
+      document.getElementById('viewQuiz').classList.toggle('hidden', view !== 'quiz');
+
+      ['Table', 'Cards', 'Compare', 'Sandbox', 'Quiz'].forEach(v => {
+        const btn = document.getElementById(`nav${v}`);
+        if (!btn) return;
+        const active = v.toLowerCase() === view;
+        btn.className = `px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${active ? 'bg-cyan-500 text-white shadow-md' : 'text-slate-300 hover:text-white'}`;
+      });
+
+      if (view === 'cards') renderFlashcard(currentCardIndex);
+      if (view === 'compare') initCompareSelects();
+      if (view === 'sandbox') initReactionSelects();
+      if (view === 'quiz') generateQuizQuestion();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      renderPeriodicTable();
+      initBohrEngine();
+      const savedScore = localStorage.getItem('chemo_score');
+      if (savedScore) {
+        quizScore = parseInt(savedScore, 10);
+        document.getElementById('quizScoreBadge').innerText = `Рахунок: ${quizScore}`;
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      const modal = document.getElementById('elementModal');
+      if (!modal || modal.classList.contains('hidden')) return;
+      if (e.key === 'ArrowLeft') { e.preventDefault(); navigateModal(-1); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); navigateModal(1); }
+      else if (e.key === 'Escape') { e.preventDefault(); closeModal(); closeLightbox(); }
+    });
+  </script>
+</body>
+</html>
