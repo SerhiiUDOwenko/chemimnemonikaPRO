@@ -1058,6 +1058,154 @@
       });
     }
 
+    function getLatticeGeometry(crystalType) {
+      const type = (crystalType || '').toLowerCase();
+      const c = 0.55;
+
+      // 1. ГЦК / FCC (Гранецентрована кубічна: Золото, Мідь, Алюміній, Срібло тощо)
+      if (type.includes('гцк') || type.includes('fcc')) {
+        const nodes = [
+          {x: -c, y: -c, z: -c}, {x: c, y: -c, z: -c}, {x: c, y: c, z: -c}, {x: -c, y: c, z: -c},
+          {x: -c, y: -c, z: c}, {x: c, y: -c, z: c}, {x: c, y: c, z: c}, {x: -c, y: c, z: c},
+          // Вузли на гранях
+          {x: 0, y: 0, z: -c, color: '#38bdf8', r: 7}, {x: 0, y: 0, z: c, color: '#38bdf8', r: 7},
+          {x: -c, y: 0, z: 0, color: '#38bdf8', r: 7}, {x: c, y: 0, z: 0, color: '#38bdf8', r: 7},
+          {x: 0, y: -c, z: 0, color: '#38bdf8', r: 7}, {x: 0, y: c, z: 0, color: '#38bdf8', r: 7}
+        ];
+        const edges = [
+          [0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]
+        ];
+        return { nodes, edges };
+      }
+
+      // 2. ГПУ / HCP (Гексагональна щільноупакована: Магній, Титан, Цинк тощо)
+      if (type.includes('гпу') || type.includes('hcp') || type.includes('гексагональна')) {
+        const r = 0.55, h = 0.5;
+        const nodes = [];
+        const edges = [];
+        
+        // Два паралельні шестикутники (верх і низ)
+        for (let l = 0; l < 2; l++) {
+          const z = l === 0 ? -h : h;
+          nodes.push({x: 0, y: 0, z: z, color: '#f59e0b', r: 7}); // Центр основи
+          const centerIdx = nodes.length - 1;
+          for (let i = 0; i < 6; i++) {
+            const a = (i * Math.PI) / 3;
+            nodes.push({x: r * Math.cos(a), y: r * Math.sin(a), z: z});
+            const curIdx = nodes.length - 1;
+            edges.push([centerIdx, curIdx]);
+            if (i > 0) edges.push([curIdx - 1, curIdx]);
+          }
+          edges.push([centerIdx + 6, centerIdx + 1]);
+        }
+        
+        // Вертикальні ребра призми
+        for (let i = 1; i <= 6; i++) {
+          edges.push([i, i + 7]);
+        }
+        
+        // Проміжний шар з трьох атомів
+        for (let i = 0; i < 3; i++) {
+          const a = (i * 2 * Math.PI) / 3 + Math.PI / 6;
+          nodes.push({x: (r * 0.55) * Math.cos(a), y: (r * 0.55) * Math.sin(a), z: 0, color: '#38bdf8', r: 8});
+        }
+        return { nodes, edges };
+      }
+
+      // 3. Алмазна / Diamond (Вуглець, Кремній, Германій)
+      if (type.includes('алмазна') || type.includes('diamond')) {
+        const nodes = [
+          {x: -c, y: -c, z: -c}, {x: c, y: -c, z: -c}, {x: c, y: c, z: -c}, {x: -c, y: c, z: -c},
+          {x: -c, y: -c, z: c}, {x: c, y: -c, z: c}, {x: c, y: c, z: c}, {x: -c, y: c, z: c},
+          // Внутрішні тетраедричні атоми
+          {x: -c/2, y: -c/2, z: -c/2, color: '#06b6d4', r: 8},
+          {x: c/2, y: c/2, z: -c/2, color: '#06b6d4', r: 8},
+          {x: -c/2, y: c/2, z: c/2, color: '#06b6d4', r: 8},
+          {x: c/2, y: -c/2, z: c/2, color: '#06b6d4', r: 8}
+        ];
+        const edges = [
+          [0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7],
+          [8,0],[8,2],[9,1],[9,3],[10,4],[10,6],[11,5],[11,7]
+        ];
+        return { nodes, edges };
+      }
+
+      // 4. Молекулярна (Гази: H2, O2, N2, Cl2 тощо)
+      if (type.includes('молекулярна') || type.includes('газ')) {
+        const d = 0.28;
+        const nodes = [
+          {x: -d, y: 0, z: 0, color: '#38bdf8', r: 11},
+          {x: d, y: 0, z: 0, color: '#38bdf8', r: 11}
+        ];
+        const edges = [[0, 1]];
+        return { nodes, edges };
+      }
+
+      // 5. ОЦК / BCC за замовчуванням (Залізо, Вольфрам, Натрій, Калій тощо)
+      const nodes = [
+        {x: -c, y: -c, z: -c}, {x: c, y: -c, z: -c}, {x: c, y: c, z: -c}, {x: -c, y: c, z: -c},
+        {x: -c, y: -c, z: c}, {x: c, y: -c, z: c}, {x: c, y: c, z: c}, {x: -c, y: c, z: c},
+        {x: 0, y: 0, z: 0, color: '#f59e0b', r: 10} // Центр куба
+      ];
+      const edges = [
+        [0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7],
+        [8,0],[8,1],[8,2],[8,3],[8,4],[8,5],[8,6],[8,7]
+      ];
+      return { nodes, edges };
+    }
+
+    function drawLatticeFrame() {
+      if (!bohrCtx || !bohrCanvas) return;
+      const w = bohrCanvas.width, h = bohrCanvas.height;
+      if (!w || !h) return;
+      const cx = w / 2, cy = h / 2;
+
+      bohrCtx.clearRect(0, 0, w, h);
+      bohrCtx.fillStyle = '#020617';
+      bohrCtx.fillRect(0, 0, w, h);
+
+      const elem = active3DElem || elementsDB[0];
+      const geom = getLatticeGeometry(elem.crystal);
+
+      const scale = Math.min(w, h) * 0.38;
+      const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+      const cosY = Math.cos(rotY + animTime * 0.25), sinY = Math.sin(rotY + animTime * 0.25);
+
+      const proj = geom.nodes.map(n => {
+        let x1 = n.x * cosY + n.z * sinY, y1 = n.y, z1 = -n.x * sinY + n.z * cosY;
+        let x2 = x1, y2 = y1 * cosX - z1 * sinX, z2 = y1 * sinX + z1 * cosX;
+        let p = 3.5 / (3.5 + z2);
+        return {
+          sx: cx + x2 * scale * p,
+          sy: cy + y2 * scale * p,
+          z: z2,
+          r: (n.r || 7.5) * p,
+          color: n.color || '#38bdf8'
+        };
+      });
+
+      // Зв'язки (ребра)
+      geom.edges.forEach(e => {
+        if (!proj[e[0]] || !proj[e[1]]) return;
+        bohrCtx.beginPath();
+        bohrCtx.moveTo(proj[e[0]].sx, proj[e[0]].sy);
+        bohrCtx.lineTo(proj[e[1]].sx, proj[e[1]].sy);
+        bohrCtx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+        bohrCtx.lineWidth = 1.8;
+        bohrCtx.stroke();
+      });
+
+      // Атоми (сортування за відстанню для правильного перекриття)
+      proj.sort((a,b) => b.z - a.z).forEach(n => {
+        bohrCtx.beginPath();
+        bohrCtx.arc(n.sx, n.sy, Math.max(3, n.r), 0, Math.PI * 2);
+        bohrCtx.fillStyle = n.color;
+        bohrCtx.fill();
+        bohrCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        bohrCtx.lineWidth = 1;
+        bohrCtx.stroke();
+      });
+    }
     function drawLatticeFrame() {
       if (!bohrCtx || !bohrCanvas) return;
       const w = bohrCanvas.width, h = bohrCanvas.height;
